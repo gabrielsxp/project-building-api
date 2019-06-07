@@ -22,11 +22,19 @@ const buildingSchema = mongoose.Schema({
         type: Number,
         default: 1
     },
+    floorsCapacity: {
+        type: Number,
+        default: 20
+    },
     floors: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Floor',
         required: true
-    }]
+    }],
+    img: {
+        type: Number,
+        default: 1
+    }
 });
 
 buildingSchema.virtual('users', {
@@ -64,10 +72,21 @@ buildingSchema.methods.checkLotation = async function(role){
 
 buildingSchema.pre('save', async function (next) {
     const building = this;
-    for (let i = 1; i <= this.numberOfFloors; i++) {
+    if(building.numberOfFloors >= 1 && building.numberOfFloors <= 6){
+        building.img = 4;
+    } else if(building.numberOfFloors >= 7 && building.numberOfFloors <= 11){
+        building.img = 3;
+    } else if(building.numberOfFloors >= 12 && building.numberOfFloors <= 15){
+        building.img = 1;
+    } else if(building.numberOfFloors >= 16 && building.numberOfFloors <= 21){
+        building.img = 0;
+    } else {
+        building.img = 2;
+    }
+    for (let i = 1; i <= building.numberOfFloors; i++) {
         const floor = new Floor({
             number: i,
-            capacity: 50,
+            capacity: building.floorsCapacity,
             belongsTo: building._id,
             allows: ['visitor', 'admin', 'employee']
         });
@@ -76,7 +95,7 @@ buildingSchema.pre('save', async function (next) {
             building.floors = building.floors.concat(floor._id);
             building.name = building.name.replace(/\s+/g, '-');
         } catch (error) {
-            return res.status(400).send('Problem trying to save the floor');
+            console.log(error);
         }
     }
     next();

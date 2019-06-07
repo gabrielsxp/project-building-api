@@ -74,6 +74,15 @@ router.delete('/users/me', auth, async (req, res) => {
     }
 });
 
+router.delete('/users', async (req, res) => {
+    try {
+        await User.deleteMany({});
+        res.sendStatus(200);
+    } catch (error) {
+        res.status(500).send({ error: error.message });
+    }
+});
+
 //LOGIN
 router.post('/users/login', async (req, res) => {
     const fields = Object.keys(req.body);

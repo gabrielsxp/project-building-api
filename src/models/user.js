@@ -10,16 +10,7 @@ const userSchema = mongoose.Schema({
         trim: true
     },
     password: {
-        type: String,
-        trim: true,
-        validate(value){
-            if(!validator.isNumeric(value)){
-                throw new Error('The password must contain only numbers');
-            }
-            if(value.length !== 6){
-                throw new Error('The password must constains exactly 6 numbers');
-            }
-        }
+        type: String
     },
     email: {
         type: String,

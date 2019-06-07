@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.post('/building', async (req, res) => {
     const body = req.body;
-    const requiredFields = ['name', 'capacity', 'numberOfFloors'];
+    const requiredFields = ['name', 'capacity', 'numberOfFloors', 'floorsCapacity'];
     const fields = Object.keys(body);
     const isValid = fields.every((field) => requiredFields.includes(field));
 
@@ -22,6 +22,66 @@ router.post('/building', async (req, res) => {
         res.status(201).send(building);
     } catch (error) {
         res.status(500).send({ error: error.message });
+    }
+});
+
+router.post('/buildings', async (req, res) => {
+    const body = req.body;
+
+    var buildings = [];
+
+    for(let i = 0; i < body.length; i++){
+        buildings.push(new Building(req.body[i]));
+    }
+
+    for(const b of buildings){
+        try {
+            await b.save();
+        } catch(error){
+            res.status(400).send(error);
+        }
+    }
+
+    res.sendStatus(201);
+})
+
+router.delete('/buildings', async (req, res) => {
+    try {
+        const buildings = await Building.deleteMany({});
+        res.sendStatus(200);
+    } catch(error) {
+        res.status(500).send({error: error.message});
+    }
+});
+
+router.post('/complex', async (req, res) => {
+    try {
+        const buildings = await Building.find({});
+        const capacity = 0;
+        const canAccess = buildings.every((building) => {
+            building.checkLotation() === true;
+        });
+        res.sendStatus(200);
+        //res.status(200).send({access: true});
+    } catch(error){
+        res.send(500).send({error: error.message});
+    }
+});
+
+router.get('/buildings', async(req, res) => {
+    try {
+        const buildings = await Building.find({});
+        res.status(200).send({data: buildings});
+    } catch(error){
+        res.send(500).send({error: error.message});
+    }
+});
+
+router.get('/building/:name', flow, async (req, res) => {
+    try {
+        res.status(200).send(req.building.floors);
+    } catch(error){
+        res.status(500).send({error: error.message});
     }
 });
 
@@ -55,7 +115,7 @@ router.post('/building/:name', flow, async (req, res) => {
             const floor = await Floor.findById(user.visits);
             const build = await Building.findById(floor.belongsTo);
             if (!build.name.match(req.building.name)) {
-                return res.status(400).send('You cannot visit two buildings at the same time !');
+                return res.status(400).send({error: 'You cannot visit two buildings at the same time !'});
             }
             user.visits = null;
         } else if(user.enters){
@@ -79,9 +139,29 @@ router.post('/building/:name', flow, async (req, res) => {
     }
 });
 
-
+router.delete('/floors', async (req, res) => {
+    try {
+        await Floor.deleteMany({});
+        res.sendStatus(200);
+    } catch (error) {
+        res.status(500).send({ error: error.message });
+    }
+});
 
 router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
+    const floor = req.floor;
+    const checkLotation = await floor.verifyLotation(req.user.role);
+    const allowsAccess = floor.allowsAccess(req.user.role);
+
+    if (!allowsAccess) {
+        console.log('entrei aqui 1');
+        return res.status(401).send('You don\'t have access level to enter this floor !');
+    }
+    if (!checkLotation) {
+        console.log('entrei aqui 2');
+        return res.status(401).send('Floor with maximum capacity. Come back later');
+    }
+
     const fields = Object.keys(req.body);
     const requiredFields = ['email', 'password'];
     const isValid = fields.every((field) => requiredFields.includes(field));
@@ -93,15 +173,18 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
         return res.status(400).send({ error: 'Invalid Floor Number' });
     }
     try {
-        const floor = req.floor;
-        const checkLotation = await floor.verifyLotation(req.user.role);
-        const allowsAccess = floor.allowsAccess(req.user.role);
-
-        if (!allowsAccess) {
-            return res.status(401).send('You don\'t have access level to enter this floor !');
-        }
-        if (!checkLotation) {
-            return res.status(401).send('Floor with maximum capacity. Come back later');
+        if(req.user.role === 'employee'){
+            const us = await User.findByCredentials(req.body.email, req.body.password);
+            if(!us){
+                console.log('entrei aqui 3');
+                return res.status(401).send('Wrong credentials!');
+            }
+        } else {
+            const us = await User.findOne({email: req.body.email});
+            if(!us){
+                console.log('entrei aqui 4');
+                return res.status(401).send('Incorrect Email');   
+            }
         }
         if (req.user.visits) {
             const floor = await Floor.findById(req.user.visits);
@@ -121,7 +204,7 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
         await req.user.save();
         res.status(200).send(req.user);
     } catch (error) {
-        res.status(500).send({ error: error.message });
+        res.status(500).send(error);
     }
 });
 
@@ -147,7 +230,7 @@ router.patch('/building/:name/:floor', [auth, flow], async (req, res) => {
     }
 });
 
-router.get('/building/:name', flow, async (req, res) => {
+router.get('/building/:name/lotation', flow, async (req, res) => {
     const building = req.building;
     try {
         var countUsers = 0;
@@ -170,7 +253,6 @@ router.delete('/building/:name', [auth, flow], async (req, res) => {
                 if (req.user.visits) {
                     const visitedFloor = await Floor.findById(req.user.visits);
                     var build = await Building.findById(visitedFloor.belongsTo);
-                    console.log(build);
                     if (!build.name.match(req.building.name)) {
                         return res.status(400).send('You cannot get out of a building that you are not even at');
                     }
@@ -181,19 +263,35 @@ router.delete('/building/:name', [auth, flow], async (req, res) => {
                 return res.sendStatus(400);
             }
         }
-        var build = await Building.findById(req.user.enters);
-        if (!build.name.match(req.building.name)) {
-            return res.status(400).send('You cannot get out of a building that you are not even at');
-        }
         req.user.tokens = req.user.tokens.filter((token) => {
             return token.token !== req.token;
         });
         req.user.visits = null;
         req.user.enters = null;
         await req.user.save();
-        res.sendStatus(200);
+        return res.sendStatus(200);
     } catch (error) {
         res.status(500).send({ error: error.message });
+    }
+});
+
+router.delete('/buidling', [auth, flow], async (req, res) => {
+    if(req.user.role.match('visitor')){
+        try {
+            await req.user.remove();
+            res.sendStatus(200);
+        } catch(error){
+            res.status(500).send({error: error.message});
+        }
+    } else {
+        try {
+            req.user.visits = null;
+            req.user.enters = null;
+            await req.user.save();
+            res.sendStatus(200);
+        } catch(error){
+            res.status(500).send({error: error.message});
+        }
     }
 });
 
