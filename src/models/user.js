@@ -3,6 +3,11 @@ const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+/*
+    Modelo que permite a atribuição de dados conhecidos sobre o banco de dados.
+    Define os atributos, seus tipos, validações.
+*/
+
 const userSchema = mongoose.Schema({
     name: {
         type: String,
@@ -44,6 +49,12 @@ const userSchema = mongoose.Schema({
     }
 });
 
+/*
+    Funções estáticas definem para o Modelo em si, procedimentos que serão executados
+    independentemente dos atributos dos objetos que o instanciam, uma vez que não estão
+    definidos ainda
+*/
+
 userSchema.statics.findByCredentials = async (email, password) => {
     const check = validator.isNumeric(password);
     if(!check){
@@ -63,6 +74,12 @@ userSchema.statics.findByCredentials = async (email, password) => {
         throw new Error(error);
     }
 }
+
+
+/*
+    Métodos sobre o esquema, permite que um objeto que instancia o modelo consiga
+    implementar cada método.
+*/
 
 userSchema.methods.toJSON = function(){
     const user = this;

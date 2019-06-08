@@ -24,6 +24,6 @@ app.use(userRouter);
 app.use(buildingRouter);
 
 //loop while
-app.listen(port, () => {
-    console.log("Up and Running on port " + port);
+app.listen(port, '0.0.0.0', () => {
+    console.log("Rodando na porta: " + port);
 });

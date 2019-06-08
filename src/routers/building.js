@@ -4,7 +4,57 @@ const flow = require('../middleware/flow');
 const Building = require('../models/building');
 const Floor = require('../models/floor');
 const User = require('../models/user');
+const control = require('../middleware/control');
 const router = express.Router();
+
+/*
+    Rota responsável por lotar um edifício
+*/
+
+router.post('/building/:name/fill', flow, async (req, res) => {
+    const building = req.building;
+    try {
+        var success = 0;
+
+        var hallUsers = building.capacity - building.users;
+        while(hallUsers >= 0){
+            let name = Math.random().toString(36).substr(2, 9);
+            let email = name+'@email.com';
+            const user = new User({
+            name,
+            email,
+            enters: building._id,
+            visits: null
+            });
+            await user.save();
+            hallUsers--;
+            }
+        for(let j = 0; j < building.floors.length; j++){
+            var floor = await Floor.findById(building.floors[j]);
+            var currentUsers = await floor.getLotation();
+            var floorUsers = floor.capacity - currentUsers;
+            while(floorUsers >= 0){
+                const name = Math.random().toString(36).substr(2, 9);
+                const email = name+'@email.com';
+                const user = new User({
+                name,
+                email,
+                enters: null,
+                visits: floor._id
+                });
+                await user.save();
+                floorUsers--;
+            }
+        }
+        res.sendStatus(201);
+    } catch(error){
+        res.status(500).send({error: error.message});
+    }
+});
+
+/*
+    Rota responsável por criar um edifício
+*/
 
 router.post('/building', async (req, res) => {
     const body = req.body;
@@ -24,6 +74,10 @@ router.post('/building', async (req, res) => {
         res.status(500).send({ error: error.message });
     }
 });
+
+/*
+    Rota responsável por adicionar uma lista de edifícios de forma asíncrona
+*/
 
 router.post('/buildings', async (req, res) => {
     const body = req.body;
@@ -45,6 +99,10 @@ router.post('/buildings', async (req, res) => {
     res.sendStatus(201);
 })
 
+/*
+    Rota responsável por remover um edifício
+*/
+
 router.delete('/buildings', async (req, res) => {
     try {
         const buildings = await Building.deleteMany({});
@@ -54,36 +112,35 @@ router.delete('/buildings', async (req, res) => {
     }
 });
 
-router.post('/complex', async (req, res) => {
+/*
+    Rota responsável por retornar todos os edifícios
+*/
+
+router.get('/buildings', control, async(req, res) => {
     try {
-        const buildings = await Building.find({});
-        const capacity = 0;
-        const canAccess = buildings.every((building) => {
-            building.checkLotation() === true;
-        });
-        res.sendStatus(200);
-        //res.status(200).send({access: true});
+        const buildings = req.buildings;
+        const total = req.capacity;
+        res.status(200).send({data: buildings, capacity: total});
     } catch(error){
         res.send(500).send({error: error.message});
     }
 });
 
-router.get('/buildings', async(req, res) => {
-    try {
-        const buildings = await Building.find({});
-        res.status(200).send({data: buildings});
-    } catch(error){
-        res.send(500).send({error: error.message});
-    }
-});
+/*
+    Rota responsável por retoronar um edifício baseado no nome
+*/
 
 router.get('/building/:name', flow, async (req, res) => {
     try {
-        res.status(200).send(req.building.floors);
+        res.status(200).send({floors: req.building.floors, capacity: req.building.numberOfFloors * req.building.floorsCapacity + req.building.floorsCapacity });
     } catch(error){
         res.status(500).send({error: error.message});
     }
 });
+
+/*
+    Rota responsável por realizar a autenticação de um usuário em um edifício
+*/
 
 router.post('/building/:name', flow, async (req, res) => {
     const fields = Object.keys(req.body);
@@ -139,6 +196,10 @@ router.post('/building/:name', flow, async (req, res) => {
     }
 });
 
+/*
+    Rota responsável por remover todos os andares de todos os edifícios
+*/
+
 router.delete('/floors', async (req, res) => {
     try {
         await Floor.deleteMany({});
@@ -148,17 +209,19 @@ router.delete('/floors', async (req, res) => {
     }
 });
 
+/*
+    Rota responsável por adicionar um andar a um edifício
+*/
+
 router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
     const floor = req.floor;
     const checkLotation = await floor.verifyLotation(req.user.role);
     const allowsAccess = floor.allowsAccess(req.user.role);
 
     if (!allowsAccess) {
-        console.log('entrei aqui 1');
         return res.status(401).send('You don\'t have access level to enter this floor !');
     }
     if (!checkLotation) {
-        console.log('entrei aqui 2');
         return res.status(401).send('Floor with maximum capacity. Come back later');
     }
 
@@ -176,13 +239,11 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
         if(req.user.role === 'employee'){
             const us = await User.findByCredentials(req.body.email, req.body.password);
             if(!us){
-                console.log('entrei aqui 3');
                 return res.status(401).send('Wrong credentials!');
             }
         } else {
             const us = await User.findOne({email: req.body.email});
             if(!us){
-                console.log('entrei aqui 4');
                 return res.status(401).send('Incorrect Email');   
             }
         }
@@ -208,9 +269,13 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
     }
 });
 
+/*
+    Rota responsável por permitir que um administrados altere características de um de um edifício
+*/
+
 router.patch('/building/:name/:floor', [auth, flow], async (req, res) => {
     if(!req.user.role.match('admin')){
-        return res.status(400).send('You are not allowed to patch this url');
+        return res.status(401).send('You are not allowed to patch this url');
     }
     const requiredFields = ['capacity', 'allows'];
     const fields = Object.keys(req.body);
@@ -230,21 +295,21 @@ router.patch('/building/:name/:floor', [auth, flow], async (req, res) => {
     }
 });
 
+/*
+    Rota responsável por retornar a quantidade de pessoas que estão em um edifício no momento
+*/
+
 router.get('/building/:name/lotation', flow, async (req, res) => {
-    const building = req.building;
     try {
-        var countUsers = 0;
-        await building.populate('users').execPopulate();
-        for (const floor of building.floors) {
-            await floor.populate('users').execPopulate();
-            countUsers += floor.users;
-        }
-        countUsers += building.users;
-        res.status(200).send({ users: countUsers });
+        res.status(200).send({ users: req.users });
     } catch (error) {
         res.status(500).send({ error: error.message });
     }
 });
+
+/*
+    Rota responsável por remover um usuário de um determinado edifício baseando-se no nome
+*/
 
 router.delete('/building/:name', [auth, flow], async (req, res) => {
     try {
@@ -275,7 +340,11 @@ router.delete('/building/:name', [auth, flow], async (req, res) => {
     }
 });
 
-router.delete('/buidling', [auth, flow], async (req, res) => {
+/*
+    Rota responsável por remover um usuário do complexo
+*/
+
+router.delete('/building', [auth, flow], async (req, res) => {
     if(req.user.role.match('visitor')){
         try {
             await req.user.remove();
@@ -295,6 +364,9 @@ router.delete('/buidling', [auth, flow], async (req, res) => {
     }
 });
 
+/*
+    Rota responsável por remover um usuário de um determinado andar do edifício
+*/
 router.delete('/building/:name/:floor', [auth, flow], async (req, res) => {
     try {
         if(!req.user.visits){

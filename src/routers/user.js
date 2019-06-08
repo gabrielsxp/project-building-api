@@ -1,11 +1,13 @@
 const express = require('express');
 const User = require('./../models/user');
+const Floor = require('./../models/floor');
 const auth = require('./../middleware/auth');
-
+const control = require('./../middleware/control');
 const router = new express.Router();
 
-//Chamadas para o modelo User
-//SiGN UP
+/*
+    Rota responsável por criar um usuário e não adicioná-lo a qualquer edifício
+*/
 router.post('/users', async (req, res) => {
     const user = new User(req.body);
     try {
@@ -16,12 +18,18 @@ router.post('/users', async (req, res) => {
     }
 });
 
+/*
+    Rota responsável por retornar os dados de um usuário
+*/
+
 router.get('/users/me', auth, async (req, res) => {
     res.status(200).send(req.user);
 });
 
 
-//UPDATE
+/*
+    Rota responsável por atualizar as informações de um usuário
+*/
 router.patch('/users/me', auth, async (req, res) => {
     const updates = Object.keys(req.body);
     const validUpdates = ['name', 'password', 'email', 'age'];
@@ -40,7 +48,9 @@ router.patch('/users/me', auth, async (req, res) => {
         res.status(500).send({ error: error.message });
     }
 })
-
+/*
+    Rota responsável por atualizar as informações de qualquer usuário
+*/
 router.patch('/super/users', auth, async (req, res) => {
     const validFields = ['role','id'];
     const fields = Object.keys(req.body);
@@ -64,7 +74,9 @@ router.patch('/super/users', auth, async (req, res) => {
     }
 });
 
-//DELETE
+/*
+    Rota responsável por remover um usuário
+*/
 router.delete('/users/me', auth, async (req, res) => {
     try {
         await req.user.remove();
@@ -74,6 +86,9 @@ router.delete('/users/me', auth, async (req, res) => {
     }
 });
 
+/*
+    Rota responsável por remover todos os usuários
+*/
 router.delete('/users', async (req, res) => {
     try {
         await User.deleteMany({});
@@ -83,7 +98,9 @@ router.delete('/users', async (req, res) => {
     }
 });
 
-//LOGIN
+/*
+    Rota responsável por autenticar um usuário
+*/
 router.post('/users/login', async (req, res) => {
     const fields = Object.keys(req.body);
     const requiredFields = ['email', 'password'];
@@ -105,6 +122,10 @@ router.post('/users/login', async (req, res) => {
     }
 });
 
+
+/*
+    Rota responsável por deslogar um usuário
+*/
 router.post('/users/logout', auth, async (req, res) => {
     try {
         req.user.tokens = req.user.tokens.filter((token) => {
@@ -112,6 +133,39 @@ router.post('/users/logout', auth, async (req, res) => {
         });
         await req.user.save();
         res.sendStatus(200);
+    } catch(error){
+        res.status(500).send({error: error.message});
+    }
+});
+
+/*
+    Rota responsável por criar aleatóriamente, diversos usuários e adicioná-los a prédios distintos.
+    Se não for possível adicionar um usuário, o próximo usuário será adicionado
+*/
+router.post('/users/random', control, async (req, res) => {
+    const buildings = req.buildings;
+    const qtd = req.body.numberOfPeople;
+    try {
+        var success = 0;
+        for(let i = 0; i < qtd; i++){
+            const name = Math.random().toString(36).substr(2, 9);
+            const email = name+'@email.com';
+            const building = buildings[Math.floor(Math.random()*buildings.length)];
+            var floor = building.floors[Math.floor(Math.random()*building.floors.length)];
+            const f = await Floor.findById(floor);
+            const isFull = await f.isFull();
+            if(!isFull){
+                const user = new User({
+                name: name,
+                email: email,
+                enters: null,
+                visits: floor._id
+                });
+                await user.save();
+                success++;
+            }
+        }
+        res.status(201).send({ success });
     } catch(error){
         res.status(500).send({error: error.message});
     }

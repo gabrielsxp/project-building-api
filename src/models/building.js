@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 const Floor = require('../models/floor');
 
+/*
+    Modelo que permite a atribuição de dados conhecidos sobre o banco de dados.
+    Define os atributos, seus tipos, validações.
+*/
+
 const buildingSchema = mongoose.Schema({
     name: {
         type: String,
@@ -44,18 +49,27 @@ buildingSchema.virtual('users', {
     count: true
 });
 
+/*
+    Métodos sobre o esquema, permite que um objeto que instancia o modelo consiga
+    implementar cada método.
+*/
+
 buildingSchema.methods.getLotation = async function () {
     const building = this;
-    await building.populate('floors').execPopulate();
+    try {
+        await building.populate('users').execPopulate();
+        await building.populate('floors').execPopulate();
 
-    var countUsers = 0;
+        var countUsers = 0;
 
-    for (const floor of building.floors) {
-        await floor.populate('users').execPopulate();
-        countUsers += floor.users;
+        for (const floor of building.floors) {
+            await floor.populate('users').execPopulate();
+            countUsers += floor.users;
+        }
+    } catch(error){
+        throw new Error(error);
     }
-
-    return countUsers;
+    return countUsers + building.users;
 }
 
 buildingSchema.methods.checkLotation = async function(role){
@@ -69,6 +83,12 @@ buildingSchema.methods.checkLotation = async function(role){
         throw new Error(error);
     }
 }
+
+/*
+    Middleware que intercepta a requisição sobre o edifício antes que seja salva no banco de dados.
+    Essa função está definindo qual imagem será mostrada no front-end baseando-se nos intervalos de
+    andares
+*/
 
 buildingSchema.pre('save', async function (next) {
     const building = this;
@@ -95,7 +115,7 @@ buildingSchema.pre('save', async function (next) {
             building.floors = building.floors.concat(floor._id);
             building.name = building.name.replace(/\s+/g, '-');
         } catch (error) {
-            console.log(error);
+            throw new Error(error);
         }
     }
     next();

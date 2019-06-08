@@ -1,6 +1,12 @@
 const Building = require('../models/building');
 const Floor = require('../models/floor');
 
+/*
+    Middleware de fluxo que fornece ao objeto de request, todas as informações sobre o
+    prédio da rota atual. Todos os andares são populados no objeto de edifício. Permite
+    que o fluxo de controle sobre cada edifício seja facilitado.
+*/
+
 const flow = async (req, res, next) => {
     try {
         const building = await Building.findOne({ name: req.params.name });

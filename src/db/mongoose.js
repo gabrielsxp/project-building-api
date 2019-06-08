@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
 
-var mongoURL = process.env.MONGO_SRV+process.env.MONGO_ADMIN_PASSWORDgit+process.env.MONGO_URL+'/'+process.env.MONGO_DATABASE;
-if(process.env.NODE_ENV === 'development'){
-    mongoURL = process.env.MONGO_LOCAL_DEV;
-}
+/*
+	Código responsável por definir a string de conexão com o MongoDB
+*/
+
+var mongoURL = 'mongodb://ec2-3-219-12-16.compute-1.amazonaws.com:27017';
 console.log(mongoURL);
 mongoose.connect(mongoURL, {
     useNewUrlParser: true,
