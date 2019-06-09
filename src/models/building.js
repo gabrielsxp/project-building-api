@@ -39,7 +39,13 @@ const buildingSchema = mongoose.Schema({
     img: {
         type: Number,
         default: 1
-    }
+    },
+    permissions: [{
+        type: String,
+        required: true,
+        trim: true,
+        lowercase: true
+    }]
 });
 
 buildingSchema.virtual('users', {
@@ -69,7 +75,7 @@ buildingSchema.methods.getLotation = async function () {
     } catch(error){
         throw new Error(error);
     }
-    return countUsers + building.users;
+    return countUsers + building.users ;
 }
 
 buildingSchema.methods.checkLotation = async function(role){
@@ -108,7 +114,7 @@ buildingSchema.pre('save', async function (next) {
             number: i,
             capacity: building.floorsCapacity,
             belongsTo: building._id,
-            allows: ['visitor', 'admin', 'employee']
+            allows: building.permissions
         });
         try {
             await floor.save();

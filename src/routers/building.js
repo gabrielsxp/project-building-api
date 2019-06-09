@@ -58,7 +58,7 @@ router.post('/building/:name/fill', flow, async (req, res) => {
 
 router.post('/building', async (req, res) => {
     const body = req.body;
-    const requiredFields = ['name', 'capacity', 'numberOfFloors', 'floorsCapacity'];
+    const requiredFields = ['name', 'capacity', 'numberOfFloors', 'floorsCapacity', 'permissions'];
     const fields = Object.keys(body);
     const isValid = fields.every((field) => requiredFields.includes(field));
 
@@ -92,7 +92,7 @@ router.post('/buildings', async (req, res) => {
         try {
             await b.save();
         } catch(error){
-            res.status(400).send(error);
+            res.status(400).send({error: error.message});
         }
     }
 
@@ -148,7 +148,7 @@ router.post('/building/:name', flow, async (req, res) => {
     const isValid = fields.every((field) => requiredFields.includes(field));
 
     if (!isValid) {
-        return res.status(400).send('Missing Credentials');
+        return res.status(400).send({error: 'Dados faltando'});
     }
     try {
         var user = null;
@@ -166,19 +166,19 @@ router.post('/building/:name', flow, async (req, res) => {
         const canAccess = await req.building.checkLotation(user.role);
         console.log(canAccess);
         if(!canAccess){
-            return res.status(401).send({error: 'The hall of the building is full'});
+            return res.status(401).send({error: 'Este prédio está cheio, volte mais tarde'});
         }
         if (user.visits) {
             const floor = await Floor.findById(user.visits);
             const build = await Building.findById(floor.belongsTo);
             if (!build.name.match(req.building.name)) {
-                return res.status(400).send({error: 'You cannot visit two buildings at the same time !'});
+                return res.status(400).send({error: 'Você não pode visitar 2 prédios ao mesmo tempo !'});
             }
             user.visits = null;
         } else if(user.enters){
             const build = await Building.findById(user.enters);
             if(!build.name.match(req.building.name)){
-                return res.status(400).send({error: 'You cannot visit two buildings at the same time !'});
+                return res.status(400).send({error: 'Você não pode visitar 2 prédios ao mesmo tempo !'});
             }
         }
 
@@ -219,10 +219,10 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
     const allowsAccess = floor.allowsAccess(req.user.role);
 
     if (!allowsAccess) {
-        return res.status(401).send('You don\'t have access level to enter this floor !');
+        return res.status(401).send({error: 'Sua credenciais não permitem que seu acesso !'});
     }
     if (!checkLotation) {
-        return res.status(401).send('Floor with maximum capacity. Come back later');
+        return res.status(401).send({error: 'Capacidade máxima atingida, volte mais tarde !'});
     }
 
     const fields = Object.keys(req.body);
@@ -230,34 +230,34 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
     const isValid = fields.every((field) => requiredFields.includes(field));
 
     if (!isValid) {
-        return res.status(400).send('Incomplete credentials');
+        return res.status(400).send({error: 'Credenciais incompletas'});
     }
     if (req.building.floors.length < req.params.floor) {
-        return res.status(400).send({ error: 'Invalid Floor Number' });
+        return res.status(400).send({ error: 'Andar incorreto' });
     }
     try {
-        if(req.user.role === 'employee'){
+        if(req.user.role === 'employee' || req.user.role === 'admin'){
             const us = await User.findByCredentials(req.body.email, req.body.password);
             if(!us){
-                return res.status(401).send('Wrong credentials!');
+                return res.status(401).send({error: 'Credenciais inválidas !'});
             }
         } else {
             const us = await User.findOne({email: req.body.email});
             if(!us){
-                return res.status(401).send('Incorrect Email');   
+                return res.status(401).send({error: 'E-mail incorreto'});   
             }
         }
         if (req.user.visits) {
             const floor = await Floor.findById(req.user.visits);
             const build = await Building.findById(floor.belongsTo);
             if (!build.name.match(req.building.name)) {
-                return res.status(400).send('You cannot visit two buildings at the same time !');
+                return res.status(400).send({error: 'Você não pode visitar 2 prédios ao mesmo tempo'});
             }
             req.user.visits = null;
         } else if(req.user.enters){
             const build = await Building.findById(req.user.enters);
             if(!build.name.match(req.building.name)){
-                return res.status(400).send({error: 'You cannot visit two buildings at the same time !'});
+                return res.status(400).send({error: 'Você não pode visitar 2 prédios ao mesmo tempo'});
             }
         }
         req.user.visits = floor._id;
@@ -265,7 +265,7 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
         await req.user.save();
         res.status(200).send(req.user);
     } catch (error) {
-        res.status(500).send(error);
+        res.status(500).send({error: error.message});
     }
 });
 
@@ -275,14 +275,14 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
 
 router.patch('/building/:name/:floor', [auth, flow], async (req, res) => {
     if(!req.user.role.match('admin')){
-        return res.status(401).send('You are not allowed to patch this url');
+        return res.status(401).send({error: 'Você não pode alterar essas informações'});
     }
     const requiredFields = ['capacity', 'allows'];
     const fields = Object.keys(req.body);
     const isValid = fields.every((field) => requiredFields.includes(field));
 
     if (!isValid) {
-        return res.status(400).send('Required fields are missing !');
+        return res.status(400).send({error: 'Campos faltando'});
     }
 
     try {
@@ -308,6 +308,13 @@ router.get('/building/:name/lotation', flow, async (req, res) => {
 });
 
 /*
+    Rota responsável por retornar as informações completas de um andar
+*/
+router.get('/building/:name/:floor', [auth, flow], async (req, res) => {
+    res.status(200).send(req.building.floors[req.params.floor-1]);
+})
+
+/*
     Rota responsável por remover um usuário de um determinado edifício baseando-se no nome
 */
 
@@ -319,7 +326,7 @@ router.delete('/building/:name', [auth, flow], async (req, res) => {
                     const visitedFloor = await Floor.findById(req.user.visits);
                     var build = await Building.findById(visitedFloor.belongsTo);
                     if (!build.name.match(req.building.name)) {
-                        return res.status(400).send('You cannot get out of a building that you are not even at');
+                        return res.status(400).send('Você não pode sair de um prédio onde não está');
                     }
                 }
                 await req.user.remove();
@@ -370,15 +377,15 @@ router.delete('/building', [auth, flow], async (req, res) => {
 router.delete('/building/:name/:floor', [auth, flow], async (req, res) => {
     try {
         if(!req.user.visits){
-            throw new Error('You are not even at this floor');
+            throw new Error('Você não pode sair deste andar');
         }
         const visitedFloor = await Floor.findById(req.user.visits);
         if (req.floor.number !== visitedFloor.number) {
-            return res.status(400).send("You cannot get out of a floor that you are not even at");
+            return res.status(400).send("Você não pode sair de um andar onde não está");
         }
         const build = await Building.findById(visitedFloor.belongsTo);
         if (!build.name.match(req.building.name)) {
-            return res.status(400).send('You cannot get out of a building that you are not even at');
+            return res.status(400).send('Você não pode sair de um andar onde não está');
         }
         req.user.visits = null;
         req.user.enters = req.building._id;
