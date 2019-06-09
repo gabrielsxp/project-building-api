@@ -20,7 +20,7 @@ acesso aplicáveis aos três tipos de ocupantes do edifício e as capacidades m�
 complexo, dos edifícios e de cada andar), devem ser definidos no início da operação do sistema
 pelo(a) administrador(a) do condomínio, podendo ser reajustados por ele(a) a qualquer momento.
 ## Instalação
-####Lembrando que esta versão está configurada para acessar o banco de dados localmente (127.0.0.1:27017)
+#### Lembrando que esta versão está configurada para acessar o banco de dados localmente (127.0.0.1:27017)
 1. Tenha o node e o npm instalados. Caso queira executar localmente, tenha também o MongoDB instalado.
 2. Clone o repositório via terminal.
 3. Acesse a pasta de destino via cd project-building-api
