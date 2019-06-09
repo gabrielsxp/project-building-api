@@ -1,9 +1,12 @@
 require('dotenv').config();
 
 const express = require('express');
+const cors = require('cors')
 require('./db/mongoose');
 
 const app = express();
+app.use(cors())
+app.options('*', cors())
 const port = process.env.PORT || 3001; //pra poder dar deploy na Heroku
 
 //Automaticamente converte a resposta do formato JSON para objeto.
