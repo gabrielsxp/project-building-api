@@ -71,8 +71,8 @@ floorSchema.methods.isFull = async function(){
 floorSchema.methods.getLotation = async function(){
     const floor = this;
     try {
-        const users = await floor.populate('users').execPopulate();
-        return users;
+        await floor.populate('users').execPopulate();
+        return floor.users;
     } catch(error){
         throw new Error(error);
     }

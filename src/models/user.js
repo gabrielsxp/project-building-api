@@ -25,7 +25,7 @@ const userSchema = mongoose.Schema({
         unique: true,
         validate(value){
             if(!validator.isEmail(value)){
-                throw new Error('Email is invalid');
+                throw new Error('Email com formato inválido');
             }
         }
     },
@@ -56,9 +56,9 @@ const userSchema = mongoose.Schema({
 */
 
 userSchema.statics.findByCredentials = async (email, password) => {
-    const check = validator.isNumeric(password);
+    const check = validator.isNumeric(password) && password.length === 6;
     if(!check){
-        throw new Error('The password must contain only numbers and must have 6 characters');
+        throw new Error('A senha deve ser númerica e conter exatamente 6 dígitos');
     }
     try {
         const user = await User.findOne({email});
@@ -67,7 +67,7 @@ userSchema.statics.findByCredentials = async (email, password) => {
         }
         const matchPasswords = await bcrypt.compare(password, user.password);
         if(!matchPasswords){
-            throw new Error({error: 'Incorret Credentials !'});
+            throw new Error('Credenciais inválidas. Tente novamente !/');
         }
         return user;
     } catch(error){

@@ -1,4 +1,5 @@
 const express = require('express');
+const stats = require('../middleware/stats');
 const auth = require('../middleware/auth');
 const flow = require('../middleware/flow');
 const Building = require('../models/building');
@@ -14,17 +15,15 @@ const router = express.Router();
 router.post('/building/:name/fill', flow, async (req, res) => {
     const building = req.building;
     try {
-        var success = 0;
-
-        var hallUsers = building.capacity - building.users;
-        while(hallUsers >= 0){
+        var hallUsers = building.capacity - req.hallUsers;
+        while(hallUsers > 0){
             let name = Math.random().toString(36).substr(2, 9);
             let email = name+'@email.com';
             const user = new User({
-            name,
-            email,
-            enters: building._id,
-            visits: null
+                name,
+                email,
+                enters: building._id,
+                visits: null
             });
             await user.save();
             hallUsers--;
@@ -33,14 +32,14 @@ router.post('/building/:name/fill', flow, async (req, res) => {
             var floor = await Floor.findById(building.floors[j]);
             var currentUsers = await floor.getLotation();
             var floorUsers = floor.capacity - currentUsers;
-            while(floorUsers >= 0){
+            while(floorUsers > 0){
                 const name = Math.random().toString(36).substr(2, 9);
                 const email = name+'@email.com';
                 const user = new User({
-                name,
-                email,
-                enters: null,
-                visits: floor._id
+                    name,
+                    email,
+                    enters: null,
+                    visits: floor._id
                 });
                 await user.save();
                 floorUsers--;
@@ -132,7 +131,13 @@ router.get('/buildings', control, async(req, res) => {
 
 router.get('/building/:name', flow, async (req, res) => {
     try {
-        res.status(200).send({floors: req.building.floors, capacity: req.building.numberOfFloors * req.building.floorsCapacity + req.building.floorsCapacity });
+        const building = req.building;
+        const floors = building.floors;
+        var capacity = 0;
+        floors.map((floor) => {
+            return capacity += floor.capacity;
+        });
+        res.status(200).send({floors: req.building.floors, capacity: building.capacity + capacity });
     } catch(error){
         res.status(500).send({error: error.message});
     }
@@ -299,7 +304,7 @@ router.patch('/building/:name/:floor', [auth, flow], async (req, res) => {
     Rota responsável por retornar a quantidade de pessoas que estão em um edifício no momento
 */
 
-router.get('/building/:name/lotation', flow, async (req, res) => {
+router.get('/building/:name/lotation', stats, async (req, res) => {
     try {
         res.status(200).send({ users: req.users });
     } catch (error) {
@@ -311,7 +316,7 @@ router.get('/building/:name/lotation', flow, async (req, res) => {
     Rota responsável por retornar as informações completas de um andar
 */
 router.get('/building/:name/:floor', [auth, flow], async (req, res) => {
-    res.status(200).send(req.building.floors[req.params.floor-1]);
+    res.status(200).send({floor: req.building.floors[req.params.floor-1], lotation: await req.floor.getLotation()});
 })
 
 /*

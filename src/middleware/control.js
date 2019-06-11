@@ -12,7 +12,12 @@ const control = async (req, res, next) => {
         const buildings = await Building.find({});
         var capacity = 0;
         for(const building of buildings){
-            capacity += building.numberOfFloors * building.floorsCapacity + building.floorsCapacity 
+            await building.populate('floors').execPopulate();
+            let floors = building.floors;
+            capacity += building.capacity;
+            for(let floor of floors){
+                capacity += floor.capacity;
+            }
         }
         req.buildings = buildings;
         req.capacity = capacity;

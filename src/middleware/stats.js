@@ -7,26 +7,25 @@ const Floor = require('../models/floor');
     que o fluxo de controle sobre cada edifício seja facilitado.
 */
 
-const flow = async (req, res, next) => {
+const stats = async (req, res, next) => {
     try {
         const building = await Building.findOne({ name: req.params.name });
         await building.populate('floors').execPopulate();
         await building.populate('users').execPopulate();
         if (!building) {
-            return res.status(404).send({ error: 'Prédio não encontrado !' });
+            return res.status(404).send({ error: 'Prédio inexistente' });
         }
         req.building = building;
-        const floor = building.floors[req.params.floor - 1];
-        req.floor = floor;
+        var users = 0;
+        for(const floor of building.floors){
+            users += await floor.getLotation();
+        }
         
-        const floorsUsers = await building.getLotation();
-        req.users = building.users + floorsUsers;
-        req.floorusers = floorsUsers;
-        req.hallUsers = building.users;
+        req.users = building.users + users;
     } catch (error) {
         res.status(500).send(error);
     }
     next();
 }
 
-module.exports = flow;
+module.exports = stats;

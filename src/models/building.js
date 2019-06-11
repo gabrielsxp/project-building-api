@@ -79,7 +79,7 @@ buildingSchema.methods.getLotation = async function () {
 }
 
 buildingSchema.methods.checkLotation = async function(role){
-    if(role.match('employee')){
+    if(role.match('employee') || (role.match('admin'))){
         return true;
     }
     try {
