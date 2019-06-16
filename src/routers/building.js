@@ -161,6 +161,8 @@ router.post('/building/:name', flow, async (req, res) => {
             user = await User.findOne({ email: req.body.email });
             if (!user) {
                 user = new User({ ...req.body, role: 'visitor' });
+            } else if(user.role === 'employee' || user.role === 'admin'){
+                return res.status(401).send({error: 'Você não é um visitante, portanto digite sua senha'});
             }
         } else {
             user = await User.findByCredentials(req.body.email, req.body.password);
@@ -224,7 +226,7 @@ router.post('/building/:name/:floor', [auth, flow], async (req, res) => {
     const allowsAccess = floor.allowsAccess(req.user.role);
 
     if (!allowsAccess) {
-        return res.status(401).send({error: 'Sua credenciais não permitem que seu acesso !'});
+        return res.status(401).send({error: 'Suas credenciais não permitem que seu acesso !'});
     }
     if (!checkLotation) {
         return res.status(401).send({error: 'Capacidade máxima atingida, volte mais tarde !'});
