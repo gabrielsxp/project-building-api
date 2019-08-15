@@ -1,5 +1,5 @@
 # project-building-api
-##### Este é um servidor Node baseado em Express com arquitetura RESTFUL que aceita requisições HTTP buscando solucionar o seguinte problema
+##### Este é um servidor Node baseado em Express com arquitetura REST que aceita requisições HTTP buscando solucionar o seguinte problema
 > Considere um grande e movimentado complexo de edifícios comerciais de escritórios. Por
 motivos de segurança, é necessário realizar o controle de acesso de todas as pessoas que
 frequentam o complexo habitual (funcionários) ou esporadicamente (visitantes, clientes etc.).
