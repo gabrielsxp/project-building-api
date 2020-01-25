@@ -1,5 +1,8 @@
 # project-building-api
 ##### Este é um servidor Node baseado em Express com arquitetura REST que aceita requisições HTTP buscando solucionar o seguinte problema
+
+O Front End para esta aplicação está em [Buildind Complex Front End](https://github.com/gabrielsxp/building-complex-fe)
+
 > Considere um grande e movimentado complexo de edifícios comerciais de escritórios. Por
 motivos de segurança, é necessário realizar o controle de acesso de todas as pessoas que
 frequentam o complexo habitual (funcionários) ou esporadicamente (visitantes, clientes etc.).
